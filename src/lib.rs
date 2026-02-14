@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::{cmp::Ordering, collections::HashMap, os::raw::c_char};
 
 use bindings::ActionFlags_ACTION_NONE;
 use config::Config;

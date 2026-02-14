@@ -7,8 +7,13 @@ pub struct Context {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) -> *mut Context {
-    null::<Context>() as *mut Context
+pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) -> Box<Context> {
+    //null::<Context>() as *mut Context
+    let context = Context {
+        seed,
+    };
+
+    Box::new(context)
 }
 
 #[unsafe(no_mangle)]
@@ -53,7 +58,7 @@ pub extern "C" fn update_score(ctx: *mut Context, agent_id: u32, score: i32) {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn make_action(ctx: *mut Context, agent_id: u32, tick: u32) -> u32 {
+pub extern "C" fn make_action(ctx: &mut Context, agent_id: u32, tick: u32) -> u32 {
     //if let Some(ctx) = get_ctx(ctx) {
     //    ctx.tick_counter += 1;
     //    bindings::ActionFlags_ACTION_THRUST
@@ -64,5 +69,9 @@ pub extern "C" fn make_action(ctx: *mut Context, agent_id: u32, tick: u32) -> u3
     //} else {
     //    bindings::ActionFlags_ACTION_NONE
     //}
-    bindings::ActionFlags_ACTION_THRUST
+    if (ctx.seed & 1) == 1 {
+        bindings::ActionFlags_ACTION_THRUST
+    } else {
+        bindings::ActionFlags_ACTION_FIRE
+    }
 }

@@ -1,8 +1,12 @@
 use std::ptr::null;
 
+use config::Config;
+
 mod bindings;
+mod config;
 
 pub struct Context {
+    config: Config,
     seed: u32,
 }
 
@@ -10,6 +14,7 @@ pub struct Context {
 pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) -> Box<Context> {
     //null::<Context>() as *mut Context
     let context = Context {
+        config: Config::default(),
         seed,
     };
 
@@ -21,10 +26,11 @@ pub extern "C" fn free_context(ctx: *mut Context) {}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn set_config_parameter(
-    ctx: *mut Context,
+    ctx: &mut Context,
     param: bindings::ConfigParameter,
     value: f32,
 ) {
+    ctx.config.update(param, value)
 }
 
 #[unsafe(no_mangle)]
@@ -51,11 +57,9 @@ pub extern "C" fn update_shot(
     heading: f32,
 ) {
 }
-    
-#[unsafe(no_mangle)]
-pub extern "C" fn update_score(ctx: *mut Context, agent_id: u32, score: i32) {
 
-}
+#[unsafe(no_mangle)]
+pub extern "C" fn update_score(ctx: *mut Context, agent_id: u32, score: i32) {}
 
 #[unsafe(no_mangle)]
 pub extern "C" fn make_action(ctx: &mut Context, agent_id: u32, tick: u32) -> u32 {

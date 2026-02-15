@@ -1,10 +1,10 @@
 #[derive(Default)]
 pub struct Config {
-    ship_max_turn_rate: f32,
-    ship_max_velocity: f32,
-    ship_hit_radius: f32,
-    shot_velocity: f32,
-    shot_lifetime: f32,
+    pub ship_max_turn_rate: f32,
+    pub ship_max_velocity: f32,
+    pub ship_hit_radius: f32,
+    pub shot_velocity: f32,
+    pub shot_lifetime: f32,
 }
 
 impl Config {

@@ -217,7 +217,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
             }
         }
     }
-    let (_, target) = match target {
+    let (distance, target) = match target {
         Some(target) => target,
         None => {
             // no target found, so game *should* be won already
@@ -255,12 +255,24 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         Some(TurnDirection::Right)
     };
 
+    // check if we are locked on target, if yes, fire shot
+
+    // calculate if shot is in hit radius
+    let lateral_distance_target = distance * angle_diff.tan().abs();
+    let hit_radius = ctx.config.ship_hit_radius;
+
+    // fire if shot would it if target does not move
+    if lateral_distance_target <= hit_radius {
+        action.fire = true;
+    }
+
     log!(
-        "Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}",
+        "Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}, Target in scope: {}",
         current_ship_to_action.pos_x,
         current_ship_to_action.pos_y,
         90.0 - target_angle.to_degrees(),
-        90.0 - current_angle.to_degrees()
+        90.0 - current_angle.to_degrees(),
+        lateral_distance_target <= hit_radius
     );
 
     action.turn_direction = movement;

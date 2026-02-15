@@ -16,6 +16,8 @@ pub struct Context {
     own_ships_to_action: Vec<Ship>,
     /// Agent ids of ships that are in this team.
     own_agent_ids: HashSet<u32>,
+    /// Current tick in the game.
+    tick: u32,
 }
 
 #[unsafe(no_mangle)]
@@ -27,6 +29,7 @@ pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) 
         world_state: WorldState::default(),
         own_ships_to_action: Vec::new(),
         own_agent_ids: HashSet::new(),
+        tick: 0,
     };
 
     Box::new(context)
@@ -91,6 +94,10 @@ pub extern "C" fn update_ship(
     pos_y: f32,
     heading: f32,
 ) {
+    // ignore ships that have 0 or less hp
+    if hp <= 0 {
+        return;
+    }
     let mut ship = Ship {
         hp,
         pos_x,
@@ -114,6 +121,10 @@ pub extern "C" fn update_shot(
     pos_y: f32,
     heading: f32,
 ) {
+    // ignore shots that have a lifetime of 0
+    if lifetime <= 0 {
+        return;
+    }
     let shot = Shot {
         lifetime,
         pos_x,
@@ -171,6 +182,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     // add this agent id to own agents, is used on first make_action calls to let ctx know
     // what agents are controlled by this team
     ctx.own_agent_ids.insert(own_agent_id);
+    ctx.tick += 1;
 
     let world_state = &ctx.world_state;
     let mut action = Action::default();

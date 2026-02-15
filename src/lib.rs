@@ -2,10 +2,8 @@ use std::{
     cmp::Ordering,
     collections::HashSet,
     fmt::{Display, Formatter},
-    os::raw::c_char,
 };
 
-use bindings::ActionFlags_ACTION_NONE;
 use config::Config;
 
 mod bindings;
@@ -15,26 +13,23 @@ mod logging;
 #[derive(Default)]
 pub struct Context {
     config: Config,
-    seed: u32,
+    _seed: u32,
     world_state: WorldState,
     /// stores ships that are owned by this agent that did not yet receive instructions on what to do next
     own_ships_to_action: Vec<Ship>,
     /// Agent ids of ships that are in this team.
     own_agent_ids: HashSet<u32>,
-    /// Current tick in the game.
-    tick: u32,
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) -> Box<Context> {
+pub extern "C" fn init_agent(_n_agents: u32, _agent_multiplicity: u32, seed: u32) -> Box<Context> {
     //null::<Context>() as *mut Context
     let context = Context {
         config: Config::default(),
-        seed,
+        _seed: seed,
         world_state: WorldState::default(),
         own_ships_to_action: Vec::new(),
         own_agent_ids: HashSet::new(),
-        tick: 0,
     };
 
     Box::new(context)
@@ -64,7 +59,7 @@ struct WorldState {
 
 #[derive(Default, Clone)]
 struct Ship {
-    hp: i32,
+    _hp: i32,
     pos_x: f32,
     pos_y: f32,
     heading: f32,
@@ -73,16 +68,16 @@ struct Ship {
 
 #[derive(Default, Clone)]
 struct Shot {
-    lifetime: i32,
+    _lifetime: i32,
     pos_x: f32,
     pos_y: f32,
-    heading: f32,
+    _heading: f32,
 }
 
 #[derive(Default)]
 struct Agent {
-    agent_id: u32,
-    score: i32,
+    _agent_id: u32,
+    _score: i32,
 }
 
 #[unsafe(no_mangle)]
@@ -104,7 +99,7 @@ pub extern "C" fn update_ship(
         return;
     }
     let mut ship = Ship {
-        hp,
+        _hp: hp,
         pos_x,
         pos_y,
         heading: (90.0 - heading).to_radians(),
@@ -131,17 +126,17 @@ pub extern "C" fn update_shot(
         return;
     }
     let shot = Shot {
-        lifetime,
+        _lifetime: lifetime,
         pos_x,
         pos_y,
-        heading: (90.0 - heading).to_radians(),
+        _heading: (90.0 - heading).to_radians(),
     };
     ctx.world_state.shots.push(shot)
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn update_score(ctx: &mut Context, agent_id: u32, score: i32) {
-    ctx.world_state.agents.push(Agent { agent_id, score })
+    ctx.world_state.agents.push(Agent { _agent_id: agent_id, _score: score })
 }
 
 #[derive(Default)]
@@ -198,7 +193,6 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     // add this agent id to own agents, is used on first make_action calls to let ctx know
     // what agents are controlled by this team
     ctx.own_agent_ids.insert(own_agent_id);
-    ctx.tick += 1;
 
     let world_state = &ctx.world_state;
     let current_ship_to_action = match ctx.own_ships_to_action.pop() {
@@ -265,7 +259,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
         log!(
             "[Tick {}] Agent: {own_agent_id}: detected shot {}/{}, angle_diff {}",
-            ctx.tick,
+            tick,
             shot.pos_x,
             shot.pos_y,
             angle_diff.to_degrees()
@@ -285,7 +279,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
             log!(
                 "[Tick {}] Agent: {own_agent_id}: evading shot {}/{}, angle_diff {}, turning direction: {}",
-                ctx.tick,
+                tick,
                 shot.pos_x,
                 shot.pos_y,
                 angle_diff.to_degrees(),
@@ -329,7 +323,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
             // no target found, so game *should* be won already
             log!(
                 "[Tick {}] Agent: {own_agent_id} - no target found",
-                ctx.tick
+                tick
             );
             if let Some(action) = evade_action {
                 return action.into();
@@ -377,7 +371,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     log!(
         "[Tick {}] Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}, Target in scope: {}",
-        ctx.tick,
+        tick,
         current_ship_to_action.pos_x,
         current_ship_to_action.pos_y,
         90.0 - target_angle.to_degrees(),

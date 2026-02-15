@@ -5,6 +5,7 @@ use config::Config;
 
 mod bindings;
 mod config;
+mod logging;
 
 #[derive(Default)]
 pub struct Context {
@@ -93,7 +94,7 @@ pub extern "C" fn update_ship(
         hp,
         pos_x,
         pos_y,
-        heading,
+        heading: (90.0 - heading).to_radians(),
     };
     if let Some(ships) = ctx.world_state.ships.get_mut(&agent_id) {
         ships.push(ship.clone());
@@ -121,7 +122,7 @@ pub extern "C" fn update_shot(
         lifetime,
         pos_x,
         pos_y,
-        heading,
+        heading
     };
     if let Some(shots) = ctx.world_state.shots.get_mut(&agent_id) {
         shots.push(shot);
@@ -232,8 +233,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     let x2 = current_ship_to_action.pos_x;
     let y2 = current_ship_to_action.pos_y;
 
-    let direction_degrees = (x2 - x1).atan2(y2 - y1).to_degrees();
-    let movement = match direction_degrees.partial_cmp(&current_ship_to_action.heading) {
+    let direction_radiant = (y2 - y1).atan2(x2 - x1);
+    let movement = match direction_radiant.partial_cmp(&current_ship_to_action.heading) {
         Some(ordering) => match ordering {
             Ordering::Equal => None,
             Ordering::Greater => Some(TurnDirection::Left),
@@ -241,10 +242,14 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         },
         None => None,
     };
+
+    log!("Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}", current_ship_to_action.pos_x, current_ship_to_action.pos_y, 90.0 - direction_radiant.to_degrees(), 90.0 - current_ship_to_action.heading.to_degrees());
+
     action.turn_direction = movement;
-    action.enable_thrusters = true;
+    //action.enable_thrusters = true;
     action.into()
 
+    
     //if (ctx.seed & 1) == 1 {
     //    bindings::ActionFlags_ACTION_THRUST
     //} else {

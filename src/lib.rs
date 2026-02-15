@@ -201,7 +201,6 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     ctx.tick += 1;
 
     let world_state = &ctx.world_state;
-    let mut action = Action::default();
     let current_ship_to_action = match ctx.own_ships_to_action.pop() {
         Some(ship) => ship,
         None => {
@@ -234,6 +233,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     // iterate through shots and calculate if they would hit
     // first shot that is determined to hit the ship will be tried to be evaded
+    let mut evade_action = None;
     for (distance, shot) in shots {
         // calculate if shot is in hit radius
 
@@ -291,10 +291,11 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
                 angle_diff.to_degrees(),
                 direction
             );
+            let mut action = Action::default();
             action.turn_direction = Some(direction);
             action.enable_thrusters = true;
 
-            return action.into();
+            evade_action = Some(action);
         }
     }
 
@@ -330,7 +331,11 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
                 "[Tick {}] Agent: {own_agent_id} - no target found",
                 ctx.tick
             );
-            return action.into();
+            if let Some(action) = evade_action {
+                return action.into();
+            } else {
+                return Action::default().into();
+            }
         }
     };
 
@@ -370,15 +375,6 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     let lateral_distance_target = distance * angle_diff.tan().abs();
     let hit_radius = ctx.config.ship_hit_radius;
 
-    // fire if shot would hit if target does not move
-    if lateral_distance_target <= hit_radius {
-        action.fire = true;
-        // don't turn to not distort the shot
-        action.turn_direction = None;
-    } else {
-        action.turn_direction = movement;
-    }
-
     log!(
         "[Tick {}] Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}, Target in scope: {}",
         ctx.tick,
@@ -389,6 +385,22 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         lateral_distance_target <= hit_radius
     );
 
+    let mut action = Action::default();
+    // fire if shot would hit if target does not move
+    if lateral_distance_target <= hit_radius {
+        action.fire = true;
+        // don't turn to not distort the shot
+        action.turn_direction = None;
+    } else {
+        action.turn_direction = movement;
+    }
+
     action.enable_thrusters = true;
+
+    // check if evade is set, if yes override turn direction to steer away from danger
+    if let Some(evade_action) = evade_action {
+        action.turn_direction = evade_action.turn_direction;
+    }
+
     action.into()
 }

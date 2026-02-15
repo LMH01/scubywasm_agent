@@ -1,4 +1,9 @@
-use std::{cmp::Ordering, collections::HashSet, os::raw::c_char};
+use std::{
+    cmp::Ordering,
+    collections::HashSet,
+    fmt::{Display, Formatter},
+    os::raw::c_char,
+};
 
 use bindings::ActionFlags_ACTION_NONE;
 use config::Config;
@@ -168,6 +173,17 @@ enum TurnDirection {
     Right,
 }
 
+impl Display for TurnDirection {
+    fn fmt(&self, formatter: &mut Formatter) -> Result<(), std::fmt::Error> {
+        let str = match self {
+            Self::Left => "left".to_string(),
+            Self::Right => "right".to_string(),
+        };
+        write!(formatter, "{str}").unwrap();
+        Ok(())
+    }
+}
+
 impl Into<u32> for TurnDirection {
     fn into(self) -> u32 {
         match self {
@@ -261,15 +277,24 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
         // shot would hit ship
         if lateral_distance_target <= hit_radius {
+            let direction = if angle_diff > 0.0 {
+                TurnDirection::Left
+            } else {
+                TurnDirection::Right
+            };
+
             log!(
-                "[Tick {}]Agent: {own_agent_id}: evading shot {}/{}, angle_diff {}",
+                "[Tick {}] Agent: {own_agent_id}: evading shot {}/{}, angle_diff {}, turning direction: {}",
                 ctx.tick,
                 shot.pos_x,
                 shot.pos_y,
-                angle_diff.to_degrees()
+                angle_diff.to_degrees(),
+                direction
             );
-            // TODO add correct evasion behavior
-            return bindings::ActionFlags_ACTION_NONE;
+            action.turn_direction = Some(direction);
+            action.enable_thrusters = true;
+
+            return action.into();
         }
     }
 
@@ -301,7 +326,10 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         Some(target) => target,
         None => {
             // no target found, so game *should* be won already
-            log!("Agent: {own_agent_id} - no target found");
+            log!(
+                "[Tick {}] Agent: {own_agent_id} - no target found",
+                ctx.tick
+            );
             return action.into();
         }
     };
@@ -352,7 +380,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     }
 
     log!(
-        "Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}, Target in scope: {}",
+        "[Tick {}] Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}, Target in scope: {}",
+        ctx.tick,
         current_ship_to_action.pos_x,
         current_ship_to_action.pos_y,
         90.0 - target_angle.to_degrees(),
@@ -362,10 +391,4 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     action.enable_thrusters = true;
     action.into()
-
-    //if (ctx.seed & 1) == 1 {
-    //    bindings::ActionFlags_ACTION_THRUST
-    //} else {
-    //    bindings::ActionFlags_ACTION_FIRE
-    //}
 }

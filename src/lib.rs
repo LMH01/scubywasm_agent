@@ -334,9 +334,13 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     let lateral_distance_target = distance * angle_diff.tan().abs();
     let hit_radius = ctx.config.ship_hit_radius;
 
-    // fire if shot would it if target does not move
+    // fire if shot would hit if target does not move
     if lateral_distance_target <= hit_radius {
         action.fire = true;
+        // don't turn to not distort the shot
+        action.turn_direction = None;
+    } else {
+        action.turn_direction = movement;
     }
 
     log!(
@@ -348,7 +352,6 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         lateral_distance_target <= hit_radius
     );
 
-    action.turn_direction = movement;
     action.enable_thrusters = true;
     action.into()
 

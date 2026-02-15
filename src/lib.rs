@@ -248,6 +248,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
                 shot.pos_y,
                 angle_diff.to_degrees()
             );
+            // TODO add correct evasion behavior
             return bindings::ActionFlags_ACTION_NONE;
         }
     }

@@ -242,8 +242,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
             angle_diff += 2.0 * std::f32::consts::PI;
         }
 
-        // TODO this needs some work
-        if angle_diff.abs() <= -179.0 || angle_diff.abs() >= 179.0 {
+        if angle_diff.to_degrees() <= -179.0 || angle_diff.to_degrees() >= 179.0 {
             // shot is probably not a danger for the ship
             continue;
         }

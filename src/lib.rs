@@ -63,7 +63,7 @@ struct Ship {
     friendly: bool,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 struct Shot {
     lifetime: i32,
     pos_x: f32,
@@ -118,7 +118,7 @@ pub extern "C" fn update_shot(
         lifetime,
         pos_x,
         pos_y,
-        heading,
+        heading: (90.0 - heading).to_radians(),
     };
     ctx.world_state.shots.push(shot)
 }
@@ -183,7 +183,74 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
             return bindings::ActionFlags_ACTION_NONE;
         }
     };
-    // TODO implement detection of shots to try and evade them
+
+    // shot evasion logic
+
+    // stores shots with the distance it is away from the ship
+    let mut shots: Vec<(f32, Shot)> = Vec::new();
+    for shot in &world_state.shots {
+        // calculate distance between shot and ship
+        let x1 = shot.pos_x;
+        let y1 = shot.pos_y;
+        let x2 = current_ship_to_action.pos_x;
+        let y2 = current_ship_to_action.pos_y;
+        let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
+        shots.push((distance, shot.clone()));
+    }
+    shots.sort_by(|a, b| match a.0.partial_cmp(&b.0) {
+        Some(order) => order,
+        None => Ordering::Equal,
+    });
+    // shot with lowest distance to ship is popped first
+    shots.reverse();
+
+    // iterate through shots and calculate if they would hit
+    // first shot that is determined to hit the ship will be tried to be evaded
+    for (distance, shot) in shots {
+        // calculate if shot is in hit radius
+
+        let x1 = current_ship_to_action.pos_x;
+        let y1 = current_ship_to_action.pos_y;
+        let x2 = shot.pos_x;
+        let y2 = shot.pos_y;
+
+        // target = my ship
+        let target_angle = (y1 - y2).atan2(x1 - x2);
+        // current angle between the shot and the ship
+        let current_angle = current_ship_to_action.heading;
+
+        // Smallest signed angle difference (-pi .. pi)
+        let mut angle_diff = target_angle - current_angle;
+
+        // Normalize to [-pi, pi]
+        while angle_diff > std::f32::consts::PI {
+            angle_diff -= 2.0 * std::f32::consts::PI;
+        }
+        while angle_diff < -std::f32::consts::PI {
+            angle_diff += 2.0 * std::f32::consts::PI;
+        }
+
+        // TODO this needs some work
+        if angle_diff.abs() <= -179.0 || angle_diff.abs() >= 179.0 {
+            // shot is probably not a danger for the ship
+            continue;
+        }
+
+        // calculate if shot is in hit radius
+        let lateral_distance_target = distance * angle_diff.tan().abs();
+        let hit_radius = ctx.config.ship_hit_radius;
+
+        // shot would hit ship
+        if lateral_distance_target <= hit_radius {
+            log!(
+                "Agent: {own_agent_id}: evading shot {}/{}, angle_diff {}",
+                shot.pos_x,
+                shot.pos_y,
+                angle_diff.to_degrees()
+            );
+            return bindings::ActionFlags_ACTION_NONE;
+        }
+    }
 
     // acquire target
     let mut target: Option<(f32, Ship)> = None;

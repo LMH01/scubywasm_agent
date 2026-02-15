@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, collections::HashMap, os::raw::c_char};
+use std::{cmp::Ordering, collections::HashSet, os::raw::c_char};
 
 use bindings::ActionFlags_ACTION_NONE;
 use config::Config;
@@ -14,8 +14,8 @@ pub struct Context {
     world_state: WorldState,
     /// stores ships that are owned by this agent that did not yet receive instructions on what to do next
     own_ships_to_action: Vec<Ship>,
-    /// Agent id of this agent, is set the first time make_aktion is called
-    own_agent_id: Option<u32>,
+    /// Agent ids of ships that are in this team.
+    own_agent_ids: HashSet<u32>,
 }
 
 #[unsafe(no_mangle)]
@@ -26,7 +26,7 @@ pub extern "C" fn init_agent(n_agents: u32, agent_multiplicity: u32, seed: u32) 
         seed,
         world_state: WorldState::default(),
         own_ships_to_action: Vec::new(),
-        own_agent_id: None,
+        own_agent_ids: HashSet::new(),
     };
 
     Box::new(context)
@@ -49,8 +49,8 @@ pub extern "C" fn set_config_parameter(
 #[derive(Default)]
 struct WorldState {
     /// stores all ships on the playfield
-    ships: HashMap<u32, Vec<Ship>>,
-    shots: HashMap<u32, Vec<Shot>>,
+    ships: Vec<Ship>,
+    shots: Vec<Shot>,
     agents: Vec<Agent>,
 }
 
@@ -60,6 +60,7 @@ struct Ship {
     pos_x: f32,
     pos_y: f32,
     heading: f32,
+    friendly: bool,
 }
 
 #[derive(Default)]
@@ -90,29 +91,24 @@ pub extern "C" fn update_ship(
     pos_y: f32,
     heading: f32,
 ) {
-    let ship = Ship {
+    let mut ship = Ship {
         hp,
         pos_x,
         pos_y,
         heading: (90.0 - heading).to_radians(),
+        friendly: false,
     };
-    if let Some(ships) = ctx.world_state.ships.get_mut(&agent_id) {
-        ships.push(ship.clone());
-    } else {
-        ctx.world_state.ships.insert(agent_id, vec![ship.clone()]);
+    if ctx.own_agent_ids.contains(&agent_id) {
+        ship.friendly = true;
+        ctx.own_ships_to_action.push(ship.clone());
     }
-    // check if ship to update belongs to this agent
-    if let Some(own_agent_id) = ctx.own_agent_id {
-        if own_agent_id == agent_id {
-            ctx.own_ships_to_action.push(ship)
-        }
-    }
+    ctx.world_state.ships.push(ship);
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn update_shot(
     ctx: &mut Context,
-    agent_id: u32,
+    _agent_id: u32,
     lifetime: i32,
     pos_x: f32,
     pos_y: f32,
@@ -124,11 +120,7 @@ pub extern "C" fn update_shot(
         pos_y,
         heading,
     };
-    if let Some(shots) = ctx.world_state.shots.get_mut(&agent_id) {
-        shots.push(shot);
-    } else {
-        ctx.world_state.shots.insert(agent_id, vec![shot]);
-    }
+    ctx.world_state.shots.push(shot)
 }
 
 #[unsafe(no_mangle)]
@@ -176,9 +168,10 @@ impl Into<u32> for TurnDirection {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -> u32 {
-    if ctx.own_agent_id.is_none() {
-        ctx.own_agent_id = Some(own_agent_id);
-    }
+    // add this agent id to own agents, is used on first make_action calls to let ctx know
+    // what agents are controlled by this team
+    ctx.own_agent_ids.insert(own_agent_id);
+
     let world_state = &ctx.world_state;
     let mut action = Action::default();
     let current_ship_to_action = match ctx.own_ships_to_action.pop() {
@@ -186,6 +179,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         None => {
             // no ship found for which an action could be calculated, so we do nothing
             // should only be run on first action because own ships are not yet initialized
+            log!("Agent {own_agent_id}: did not find own ships");
             return bindings::ActionFlags_ACTION_NONE;
         }
     };
@@ -193,34 +187,33 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     // acquire target
     let mut target: Option<(f32, Ship)> = None;
-    for (agent_id, ships) in &world_state.ships {
-        if *agent_id == own_agent_id {
+    for ship in &world_state.ships {
+        if ship.friendly {
             // we don't want to lock an allied ship as target
             continue;
         }
-        // found ships of enemy, determine what ship is closest, choose that as target
-        for ship in ships {
-            let x1 = ship.pos_x;
-            let y1 = ship.pos_y;
-            let x2 = current_ship_to_action.pos_x;
-            let y2 = current_ship_to_action.pos_y;
-            let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
-            if let Some((current_min_distance, ship)) = &target {
-                // only update target when distance is closer
-                if current_min_distance > &distance {
-                    // closer target found, update target
-                    target = Some((distance, ship.clone()));
-                }
-            } else {
-                // no target yet, set target
+        // ship is enemy, so we can lock on to it
+        let x1 = ship.pos_x;
+        let y1 = ship.pos_y;
+        let x2 = current_ship_to_action.pos_x;
+        let y2 = current_ship_to_action.pos_y;
+        let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
+        if let Some((current_min_distance, ship)) = &target {
+            // only update target when distance is closer
+            if current_min_distance > &distance {
+                // closer target found, update target
                 target = Some((distance, ship.clone()));
             }
+        } else {
+            // no target yet, set target
+            target = Some((distance, ship.clone()));
         }
     }
     let (distance, target) = match target {
         Some(target) => target,
         None => {
             // no target found, so game *should* be won already
+            log!("Agent: {own_agent_id} - no target found");
             return action.into();
         }
     };

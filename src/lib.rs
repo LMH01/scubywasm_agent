@@ -233,7 +233,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     let x2 = current_ship_to_action.pos_x;
     let y2 = current_ship_to_action.pos_y;
 
-    let direction_radiant = (y2 - y1).atan2(x2 - x1);
+    let direction_radiant = (y1 - y2).atan2(x1 - x2);
     let movement = match direction_radiant.partial_cmp(&current_ship_to_action.heading) {
         Some(ordering) => match ordering {
             Ordering::Equal => None,
@@ -246,7 +246,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     log!("Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}", current_ship_to_action.pos_x, current_ship_to_action.pos_y, 90.0 - direction_radiant.to_degrees(), 90.0 - current_ship_to_action.heading.to_degrees());
 
     action.turn_direction = movement;
-    //action.enable_thrusters = true;
+    action.enable_thrusters = true;
     action.into()
 
     

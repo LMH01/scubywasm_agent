@@ -122,7 +122,7 @@ pub extern "C" fn update_shot(
         lifetime,
         pos_x,
         pos_y,
-        heading
+        heading,
     };
     if let Some(shots) = ctx.world_state.shots.get_mut(&agent_id) {
         shots.push(shot);
@@ -221,7 +221,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         Some(target) => target,
         None => {
             // no target found, so game *should* be won already
-            return action.into()
+            return action.into();
         }
     };
 
@@ -233,23 +233,40 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     let x2 = current_ship_to_action.pos_x;
     let y2 = current_ship_to_action.pos_y;
 
-    let direction_radiant = (y1 - y2).atan2(x1 - x2);
-    let movement = match direction_radiant.partial_cmp(&current_ship_to_action.heading) {
-        Some(ordering) => match ordering {
-            Ordering::Equal => None,
-            Ordering::Greater => Some(TurnDirection::Left),
-            Ordering::Less => Some(TurnDirection::Right),
-        },
-        None => None,
+    let target_angle = (y1 - y2).atan2(x1 - x2);
+    let current_angle = current_ship_to_action.heading;
+
+    // Smallest signed angle difference (-pi .. pi)
+    let mut angle_diff = target_angle - current_angle;
+
+    // Normalize to [-pi, pi]
+    while angle_diff > std::f32::consts::PI {
+        angle_diff -= 2.0 * std::f32::consts::PI;
+    }
+    while angle_diff < -std::f32::consts::PI {
+        angle_diff += 2.0 * std::f32::consts::PI;
+    }
+
+    let movement = if angle_diff.abs() < 0.01 {
+        None
+    } else if angle_diff > 0.0 {
+        Some(TurnDirection::Left)
+    } else {
+        Some(TurnDirection::Right)
     };
 
-    log!("Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}", current_ship_to_action.pos_x, current_ship_to_action.pos_y, 90.0 - direction_radiant.to_degrees(), 90.0 - current_ship_to_action.heading.to_degrees());
+    log!(
+        "Agent: {own_agent_id}, Current position: [{},{}], Target direction: {}, Current direction: {}",
+        current_ship_to_action.pos_x,
+        current_ship_to_action.pos_y,
+        90.0 - target_angle.to_degrees(),
+        90.0 - current_angle.to_degrees()
+    );
 
     action.turn_direction = movement;
     action.enable_thrusters = true;
     action.into()
 
-    
     //if (ctx.seed & 1) == 1 {
     //    bindings::ActionFlags_ACTION_THRUST
     //} else {

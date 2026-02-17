@@ -392,8 +392,15 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         action.fire = true;
         // don't turn to not distort the shot
         action.turn_direction = None;
-    } else {
+    } else if shot_available {
         action.turn_direction = movement;
+    } else {
+        // no shot available, fly straight
+        log!(
+            "[Tick {}] Agent: {own_agent_id}, No shot available, flying straight",
+            tick,
+        );
+        action.turn_direction = None;
     }
 
     action.enable_thrusters = true;
@@ -401,6 +408,10 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     // check if evade is set, if yes override turn direction to steer away from danger (but only if we don't shoot, to not make the shot miss)
     if let Some(evade_action) = evade_action {
         if !action.fire {
+            log!(
+                "[Tick {}] Agent: {own_agent_id}, evading",
+                tick,
+            );
             action.turn_direction = evade_action.turn_direction;
         }
     }

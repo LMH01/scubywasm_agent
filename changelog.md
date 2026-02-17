@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.6
+
+- turn straight when no shot available and not evading to not fly into enemies anymore
+
 ## v1.0.5
 
 - don't evade when taking shot

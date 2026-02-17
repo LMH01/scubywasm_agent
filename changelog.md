@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.7
+
+- slightly increase own ship size when calculating if shot would hit to make evasion easier
+
 ## v1.0.6
 
 - turn straight when no shot available and not evading to not fly into enemies anymore

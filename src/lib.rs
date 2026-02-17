@@ -380,8 +380,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     );
 
     let mut action = Action::default();
-    // fire if shot would hit if target does not move
-    if lateral_distance_target <= hit_radius {
+    // fire if shot would hit if target does not move and we are in specific range
+    if lateral_distance_target <= hit_radius && distance <= 0.3 {
         action.fire = true;
         // don't turn to not distort the shot
         action.turn_direction = None;

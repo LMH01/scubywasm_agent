@@ -391,9 +391,11 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     action.enable_thrusters = true;
 
-    // check if evade is set, if yes override turn direction to steer away from danger
+    // check if evade is set, if yes override turn direction to steer away from danger (but only if we don't shoot, to not make the shot miss)
     if let Some(evade_action) = evade_action {
-        action.turn_direction = evade_action.turn_direction;
+        if !action.fire {
+            action.turn_direction = evade_action.turn_direction;
+        }
     }
 
     action.into()

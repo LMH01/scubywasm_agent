@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.5
+
+- don't evade when taking shot
+
 ## v1.0.4
 
 - revert changes in v1.0.2

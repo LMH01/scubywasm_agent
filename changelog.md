@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.9
+
+- slightly reduce own ship size when calculating if shot would hit. `ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.125)` -> `ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.0625)`
+
 ## v1.0.8
 
 - slightly reduce own ship size when calculating if shot would hit. `ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.25)` -> `ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.125)`

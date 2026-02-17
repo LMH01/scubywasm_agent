@@ -277,7 +277,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
         // calculate if shot is in hit radius
         let lateral_distance_target = distance * angle_diff.tan().abs();
-        let hit_radius = ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.25); // slightly increase hit radius to make evasion easier and more conservative
+        let hit_radius = ctx.config.ship_hit_radius + (ctx.config.ship_hit_radius + 0.125); // slightly increase hit radius to make evasion easier and more conservative
 
         // shot would hit ship
         if lateral_distance_target <= hit_radius {

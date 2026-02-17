@@ -68,6 +68,7 @@ struct Ship {
 
 #[derive(Default, Clone)]
 struct Shot {
+    agent_id: u32,
     _lifetime: i32,
     pos_x: f32,
     pos_y: f32,
@@ -115,7 +116,7 @@ pub extern "C" fn update_ship(
 #[unsafe(no_mangle)]
 pub extern "C" fn update_shot(
     ctx: &mut Context,
-    _agent_id: u32,
+    agent_id: u32,
     lifetime: i32,
     pos_x: f32,
     pos_y: f32,
@@ -130,6 +131,7 @@ pub extern "C" fn update_shot(
         pos_x,
         pos_y,
         _heading: (90.0 - heading).to_radians(),
+        agent_id,
     };
     ctx.world_state.shots.push(shot)
 }
@@ -212,6 +214,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     // stores shots with the distance it is away from the ship
     let mut shots: Vec<(f32, Shot)> = Vec::new();
+    // check if we have a shot free
+    let mut shot_available = true;
     for shot in &world_state.shots {
         // calculate distance between shot and ship
         let x1 = shot.pos_x;
@@ -220,6 +224,9 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         let y2 = current_ship_to_action.pos_y;
         let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
         shots.push((distance, shot.clone()));
+        if shot.agent_id == own_agent_id {
+            shot_available = false;
+        }
     }
     shots.sort_by(|a, b| match a.0.partial_cmp(&b.0) {
         Some(order) => order,
@@ -381,7 +388,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
 
     let mut action = Action::default();
     // fire if shot would hit if target does not move and we are in specific range
-    if lateral_distance_target <= hit_radius && distance <= 0.3 {
+    if lateral_distance_target <= hit_radius && distance <= 0.3 && shot_available {
         action.fire = true;
         // don't turn to not distort the shot
         action.turn_direction = None;

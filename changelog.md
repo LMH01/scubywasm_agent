@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.4
+
+- revert changes in v1.0.2
+
 ## v1.0.3
 
 - fix aiming to actually shoot nearest target

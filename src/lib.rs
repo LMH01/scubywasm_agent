@@ -228,13 +228,30 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
     // iterate through shots and calculate if they would hit
     // first shot that is determined to hit the ship will be tried to be evaded
     let mut evade_action = None;
+    let mut objects_to_evade = Vec::new();
     for (distance, shot) in shots {
+        objects_to_evade.push((shot.pos_x, shot.pos_y, distance));
+    }
+    for ship in &ctx.world_state.ships {
+        if ship.pos_x == current_ship_to_action.pos_x && ship.pos_y == current_ship_to_action.pos_y {
+            // ship is our ship, skip
+            continue;
+        }
+
+        let x1 = ship.pos_x;
+        let y1 = ship.pos_y;
+        let x2 = current_ship_to_action.pos_x;
+        let y2 = current_ship_to_action.pos_y;
+        let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
+        objects_to_evade.push((ship.pos_x, ship.pos_y, distance));
+    }
+    for (pos_x, pos_y, distance) in objects_to_evade {
         // calculate if shot is in hit radius
 
         let x1 = current_ship_to_action.pos_x;
         let y1 = current_ship_to_action.pos_y;
-        let x2 = shot.pos_x;
-        let y2 = shot.pos_y;
+        let x2 = pos_x;
+        let y2 = pos_y;
 
         // target = my ship
         let target_angle = (y1 - y2).atan2(x1 - x2);
@@ -258,10 +275,10 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         }
 
         log!(
-            "[Tick {}] Agent: {own_agent_id}: detected shot {}/{}, angle_diff {}",
+            "[Tick {}] Agent: {own_agent_id}: detected shot or ship {}/{}, angle_diff {}",
             tick,
-            shot.pos_x,
-            shot.pos_y,
+            pos_x,
+            pos_y,
             angle_diff.to_degrees()
         );
 
@@ -280,8 +297,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
             log!(
                 "[Tick {}] Agent: {own_agent_id}: evading shot {}/{}, angle_diff {}, turning direction: {}",
                 tick,
-                shot.pos_x,
-                shot.pos_y,
+                pos_x,
+                pos_y,
                 angle_diff.to_degrees(),
                 direction
             );

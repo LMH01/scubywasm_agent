@@ -136,7 +136,10 @@ pub extern "C" fn update_shot(
 
 #[unsafe(no_mangle)]
 pub extern "C" fn update_score(ctx: &mut Context, agent_id: u32, score: i32) {
-    ctx.world_state.agents.push(Agent { _agent_id: agent_id, _score: score })
+    ctx.world_state.agents.push(Agent {
+        _agent_id: agent_id,
+        _score: score,
+    })
 }
 
 #[derive(Default)]
@@ -233,7 +236,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         objects_to_evade.push((shot.pos_x, shot.pos_y, distance));
     }
     for ship in &ctx.world_state.ships {
-        if ship.pos_x == current_ship_to_action.pos_x && ship.pos_y == current_ship_to_action.pos_y {
+        if ship.pos_x == current_ship_to_action.pos_x && ship.pos_y == current_ship_to_action.pos_y
+        {
             // ship is our ship, skip
             continue;
         }
@@ -322,8 +326,8 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         let y1 = ship.pos_y;
         let x2 = current_ship_to_action.pos_x;
         let y2 = current_ship_to_action.pos_y;
-        let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt().abs();
-        if let Some((current_min_distance, ship)) = &target {
+        let distance = ((x2 - x1).powi(2) + (y2 - y1).powi(2)).sqrt();
+        if let Some((current_min_distance, _)) = &target {
             // only update target when distance is closer
             if current_min_distance > &distance {
                 // closer target found, update target
@@ -338,10 +342,7 @@ pub extern "C" fn make_action(ctx: &mut Context, own_agent_id: u32, tick: u32) -
         Some(target) => target,
         None => {
             // no target found, so game *should* be won already
-            log!(
-                "[Tick {}] Agent: {own_agent_id} - no target found",
-                tick
-            );
+            log!("[Tick {}] Agent: {own_agent_id} - no target found", tick);
             if let Some(action) = evade_action {
                 return action.into();
             } else {

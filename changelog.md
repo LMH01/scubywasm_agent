@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.0.3
+
+- fix aiming to actually shoot nearest target
+
 ## v1.0.2
 
 - try to evade other ships
